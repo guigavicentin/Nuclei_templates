@@ -1,0 +1,39 @@
+id: clickjacking-pro
+
+info:
+  name: Clickjacking Protection Missing or Weak (XFO / CSP frame-ancestors)
+  author: guigavicentin
+  severity: low
+  description: Detects missing or weak anti-framing protections via X-Frame-Options or CSP frame-ancestors.
+  tags: clickjacking,headers,csp,misconfig,custom
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+    headers:
+      User-Agent: nuclei
+
+    matchers:
+      - type: dsl
+        dsl:
+          - >
+            !contains(tolower(all_headers), 'x-frame-options') &&
+            (
+              !contains(tolower(all_headers), 'content-security-policy') ||
+              regex(tolower(all_headers), 'frame-ancestors\\s+\\*') ||
+              regex(tolower(all_headers), 'frame-ancestors\\s+https?:') ||
+              regex(tolower(all_headers), 'frame-ancestors\\s+http')
+            )
+
+    extractors:
+      - type: regex
+        part: header
+        name: xfo
+        regex:
+          - "(?im)^X-Frame-Options\\s*:\\s*(.*)$"
+      - type: regex
+        part: header
+        name: csp
+        regex:
+          - "(?im)^Content-Security-Policy\\s*:\\s*(.*)$"
