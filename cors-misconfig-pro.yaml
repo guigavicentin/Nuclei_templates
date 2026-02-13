@@ -1,0 +1,56 @@
+id: cors-misconfig-pro
+
+info:
+  name: CORS Misconfiguration (Wildcard/Reflection/Credentials)
+  author: guigavicentin
+  severity: medium
+  description: Detects insecure CORS settings such as wildcard origin, origin reflection, and credentials with insecure origin.
+  tags: cors,misconfig,headers,custom
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+    headers:
+      Origin: "{{evil_origin}}"
+      User-Agent: nuclei
+    variables:
+      evil_origin: "https://{{randstr}}.evil.com"
+
+    matchers-condition: or
+    matchers:
+      # Wildcard
+      - type: dsl
+        name: wildcard-acao
+        dsl:
+          - "regex(tolower(all_headers), 'access-control-allow-origin\\s*:\\s*\\*')"
+
+      # Reflection of our supplied Origin
+      - type: dsl
+        name: reflected-origin
+        dsl:
+          - "contains(tolower(all_headers), tolower('access-control-allow-origin: ' + evil_origin))"
+
+      # Credentials + wildcard (usually worse)
+      - type: dsl
+        name: creds-with-wildcard
+        dsl:
+          - "regex(tolower(all_headers), 'access-control-allow-credentials\\s*:\\s*true') && regex(tolower(all_headers), 'access-control-allow-origin\\s*:\\s*\\*')"
+
+      # Credentials + reflected origin (often high-impact if data is sensitive)
+      - type: dsl
+        name: creds-with-reflection
+        dsl:
+          - "regex(tolower(all_headers), 'access-control-allow-credentials\\s*:\\s*true') && contains(tolower(all_headers), tolower('access-control-allow-origin: ' + evil_origin))"
+
+    extractors:
+      - type: regex
+        part: header
+        name: acao
+        regex:
+          - "(?im)^Access-Control-Allow-Origin\\s*:\\s*(.*)$"
+      - type: regex
+        part: header
+        name: acac
+        regex:
+          - "(?im)^Access-Control-Allow-Credentials\\s*:\\s*(.*)$"
