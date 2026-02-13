@@ -1,0 +1,40 @@
+id: csrf-heuristic-pro
+
+info:
+  name: Potential CSRF Protection Missing (Heuristic)
+  author: guigavicentin
+  severity: medium
+  description: Heuristic detection of POST forms without common CSRF token indicators.
+  tags: csrf,misconfig,custom
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+    headers:
+      User-Agent: nuclei
+
+    matchers-condition: and
+    matchers:
+      # Has a form and likely POST
+      - type: regex
+        part: body
+        regex:
+          - "(?is)<form[^>]*method\\s*=\\s*['\\\"]?post['\\\"]?[^>]*>"
+
+      # No obvious CSRF token fields / meta / headers hints in HTML
+      - type: regex
+        part: body
+        negative: true
+        regex:
+          - "(?is)name\\s*=\\s*['\\\"](?:csrf(?:token)?|_csrf|xsrf(?:token)?|authenticity_token|requestverificationtoken|__requestverificationtoken|_token)['\\\"]"
+          - "(?is)content\\s*=\\s*['\\\"][^'\\\"]+['\\\"]\\s+name\\s*=\\s*['\\\"]csrf(?:token)?['\\\"]"
+          - "(?is)X-CSRF-Token|X-XSRF-Token|CSRF-Token|anti-csrf"
+
+    extractors:
+      # Useful evidence: show if app sets cookies and whether SameSite appears
+      - type: regex
+        part: header
+        name: set_cookie_lines
+        regex:
+          - "(?im)^Set-Cookie\\s*:\\s*(.*)$"
