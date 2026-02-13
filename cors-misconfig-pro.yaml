@@ -1,47 +1,47 @@
-id: cors-misconfig-pro
+id: cors-misconfig-pro-fixed
 
 info:
-  name: CORS Misconfiguration (Wildcard/Reflection/Credentials)
+  name: CORS Misconfiguration (Wildcard / Origin Reflection / Credentials)
   author: guigavicentin
   severity: medium
-  description: Detects insecure CORS settings such as wildcard origin, origin reflection, and credentials with insecure origin.
+  description: Detects wildcard ACAO, origin reflection and credentials enabled with insecure origin.
   tags: cors,misconfig,headers,custom
 
 http:
-  - method: GET
-    path:
-      - "{{BaseURL}}"
-    headers:
-      Origin: "{{evil_origin}}"
-      User-Agent: nuclei
-    variables:
-      evil_origin: "https://{{randstr}}.evil.com"
+  - raw:
+      - |
+        GET / HTTP/1.1
+        Host: {{Hostname}}
+        Origin: {{cors_origin}}
+        User-Agent: nuclei
+
+    payloads:
+      cors_origin:
+        - "https://{{randstr}}.evil.com"
+        - "http://{{randstr}}.evil.com"
+        - "null"
+
+    stop-at-first-match: true
 
     matchers-condition: or
     matchers:
-      # Wildcard
+      # 1) Wildcard ACAO
       - type: dsl
         name: wildcard-acao
         dsl:
-          - "regex(tolower(all_headers), 'access-control-allow-origin\\s*:\\s*\\*')"
+          - "contains(tolower(header), 'access-control-allow-origin: *')"
 
-      # Reflection of our supplied Origin
+      # 2) Origin refletida (qualquer origin que enviamos volta no ACAO)
       - type: dsl
         name: reflected-origin
         dsl:
-          - "contains(tolower(all_headers), tolower('access-control-allow-origin: ' + evil_origin))"
+          - "contains(tolower(header), 'access-control-allow-origin: {{cors_origin}}')"
 
-      # Credentials + wildcard (usually worse)
-      - type: dsl
-        name: creds-with-wildcard
-        dsl:
-          - "regex(tolower(all_headers), 'access-control-allow-credentials\\s*:\\s*true') && regex(tolower(all_headers), 'access-control-allow-origin\\s*:\\s*\\*')"
-
-      # Credentials + reflected origin (often high-impact if data is sensitive)
+      # 3) Credenciais habilitadas + origin refletida (mais grave)
       - type: dsl
         name: creds-with-reflection
         dsl:
-          - "regex(tolower(all_headers), 'access-control-allow-credentials\\s*:\\s*true') && contains(tolower(all_headers), tolower('access-control-allow-origin: ' + evil_origin))"
+          - "contains(tolower(header), 'access-control-allow-origin: {{cors_origin}}') && contains(tolower(header), 'access-control-allow-credentials: true')"
 
     extractors:
       - type: regex
