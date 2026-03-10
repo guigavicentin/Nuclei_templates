@@ -1,11 +1,11 @@
 id: cors-misconfig-pro-fixed
 
 info:
-  name: CORS Misconfiguration (Wildcard / Origin Reflection / Credentials)
+  name: CORS Misconfiguration (Wildcard / Reflection / Credentials)
   author: guigavicentin
   severity: medium
-  description: Detects wildcard ACAO, origin reflection and credentials enabled with insecure origin.
-  tags: cors,misconfig,headers,custom
+  description: Detects insecure CORS configurations including wildcard, origin reflection and credentials enabled.
+  tags: cors,misconfig,headers
 
 http:
   - raw:
@@ -17,31 +17,53 @@ http:
 
     payloads:
       cors_origin:
+
+        # padrão
         - "https://{{randstr}}.evil.com"
         - "http://{{randstr}}.evil.com"
+
+        # null origin
         - "null"
 
-    stop-at-first-match: true
+        # domínio simples
+        - "https://evil.com"
+
+        # bypass comum
+        - "https://evil.com."
+        - "https://evil.com.."
+        - "https://evil.com%00"
+
+        # subdomain bypass
+        - "https://evil.com.{{Hostname}}"
+        - "https://{{Hostname}}.evil.com"
+
+        # parser bypass
+        - "https://evil.com@{{Hostname}}"
+        - "https://{{Hostname}}@evil.com"
+
+    stop-at-first-match: false
 
     matchers-condition: or
     matchers:
-      # 1) Wildcard ACAO
-      - type: dsl
-        name: wildcard-acao
-        dsl:
-          - "contains(tolower(header), 'access-control-allow-origin: *')"
 
-      # 2) Origin refletida (qualquer origin que enviamos volta no ACAO)
-      - type: dsl
-        name: reflected-origin
-        dsl:
-          - "contains(tolower(header), 'access-control-allow-origin: {{cors_origin}}')"
+      # LOW
+      - type: regex
+        name: cors-wildcard-low
+        part: header
+        regex:
+          - "(?i)Access-Control-Allow-Origin:\\s*\\*"
 
-      # 3) Credenciais habilitadas + origin refletida (mais grave)
+      # MEDIUM
       - type: dsl
-        name: creds-with-reflection
+        name: cors-origin-reflection-medium
         dsl:
-          - "contains(tolower(header), 'access-control-allow-origin: {{cors_origin}}') && contains(tolower(header), 'access-control-allow-credentials: true')"
+          - "contains(tolower(header), tolower(cors_origin))"
+
+      # HIGH
+      - type: dsl
+        name: cors-credentials-high
+        dsl:
+          - "contains(tolower(header), tolower(cors_origin)) && contains(tolower(header), 'access-control-allow-credentials: true')"
 
     extractors:
       - type: regex
@@ -49,6 +71,7 @@ http:
         name: acao
         regex:
           - "(?im)^Access-Control-Allow-Origin\\s*:\\s*(.*)$"
+
       - type: regex
         part: header
         name: acac
