@@ -17,15 +17,18 @@ http:
 
     payloads:
       cors_origin:
+
         - "https://{{randstr}}.evil.com"
         - "http://{{randstr}}.evil.com"
-        - "null"
         - "https://evil.com"
+        - "null"
+
+        # bypass comuns
         - "https://evil.com."
         - "https://evil.com.."
         - "https://evil.com%00"
-        - "https://evil.com.{{Hostname}}"
-        - "https://{{Hostname}}.evil.com"
+
+        # parser bypass
         - "https://evil.com@{{Hostname}}"
         - "https://{{Hostname}}@evil.com"
 
@@ -34,25 +37,25 @@ http:
     matchers-condition: or
     matchers:
 
-      # HIGH
+      # HIGH - wildcard + credentials
       - type: dsl
         name: cors-wildcard-with-credentials-high
         dsl:
           - "contains(tolower(header),'access-control-allow-origin: *') && contains(tolower(header),'access-control-allow-credentials: true')"
 
-      # HIGH
+      # HIGH - reflection externa + credentials
       - type: dsl
         name: cors-reflection-with-credentials-high
         dsl:
-          - "contains(tolower(header),tolower(cors_origin)) && contains(tolower(header),'access-control-allow-credentials: true')"
+          - "contains(tolower(header),tolower(cors_origin)) && contains(tolower(header),'access-control-allow-credentials: true') && !contains(tolower(cors_origin),tolower(hostname))"
 
-      # MEDIUM
+      # MEDIUM - reflection externa
       - type: dsl
         name: cors-origin-reflection-medium
         dsl:
-          - "contains(tolower(header),tolower(cors_origin)) && !contains(tolower(header),'access-control-allow-credentials: true')"
+          - "contains(tolower(header),tolower(cors_origin)) && !contains(tolower(cors_origin),tolower(hostname))"
 
-      # LOW (apenas se NÃO tiver credentials)
+      # LOW - wildcard sem credentials
       - type: dsl
         name: cors-wildcard-low
         dsl:
