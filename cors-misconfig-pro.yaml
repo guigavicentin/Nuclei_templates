@@ -17,7 +17,6 @@ http:
 
     payloads:
       cors_origin:
-
         - "https://{{randstr}}.evil.com"
         - "http://{{randstr}}.evil.com"
         - "null"
@@ -51,14 +50,13 @@ http:
       - type: dsl
         name: cors-origin-reflection-medium
         dsl:
-          - "contains(tolower(header),tolower(cors_origin))"
+          - "contains(tolower(header),tolower(cors_origin)) && !contains(tolower(header),'access-control-allow-credentials: true')"
 
-      # LOW
-      - type: regex
+      # LOW (apenas se NÃO tiver credentials)
+      - type: dsl
         name: cors-wildcard-low
-        part: header
-        regex:
-          - "(?i)Access-Control-Allow-Origin:\\s*\\*"
+        dsl:
+          - "contains(tolower(header),'access-control-allow-origin: *') && !contains(tolower(header),'access-control-allow-credentials: true')"
 
     extractors:
       - type: regex
